@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import React, { useReducer } from 'react';
 import { Container, Row, Col, Card, Button, Modal, Form, Table } from 'react-bootstrap';
 
-const AdminDashboard = () => {
-  const [showModal, setShowModal] = useState(false);
-  const [courses, setCourses] = useState([
+const initialState = {
+  showModal: false,
+  courses: [
     {
       id: 1,
       title: 'React Fundamentals',
@@ -18,46 +18,71 @@ const AdminDashboard = () => {
       category: 'frontend',
       instructor: 'Jane Smith'
     }
-  ]);
-
-  const [formData, setFormData] = useState({
+  ],
+  formData: {
+    id: null,
     title: '',
     description: '',
     category: '',
     instructor: ''
-  });
+  }
+};
+
+function reducer(state, action) {
+  switch (action.type) {
+    case 'SHOW_MODAL':
+      return {
+        ...state,
+        showModal: true,
+        formData: action.payload || initialState.formData
+      };
+    case 'HIDE_MODAL':
+      return {
+        ...state,
+        showModal: false,
+        formData: initialState.formData
+      };
+    case 'UPDATE_FORM':
+      return {
+        ...state,
+        formData: {
+          ...state.formData,
+          [action.field]: action.value
+        }
+      };
+    case 'SAVE_COURSE':
+      const updatedCourses = state.formData.id
+        ? state.courses.map(course =>
+            course.id === state.formData.id ? state.formData : course
+          )
+        : [...state.courses, { ...state.formData, id: Date.now() }];
+      return {
+        ...state,
+        courses: updatedCourses,
+        showModal: false,
+        formData: initialState.formData
+      };
+    case 'DELETE_COURSE':
+      return {
+        ...state,
+        courses: state.courses.filter(course => course.id !== action.payload)
+      };
+    default:
+      return state;
+  }
+}
+
+const AdminDashboard = () => {
+  const [state, dispatch] = useReducer(reducer, initialState);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
+    dispatch({ type: 'UPDATE_FORM', field: name, value });
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    const newCourse = {
-      id: courses.length + 1,
-      ...formData
-    };
-    setCourses([...courses, newCourse]);
-    setShowModal(false);
-    setFormData({
-      title: '',
-      description: '',
-      category: '',
-      instructor: ''
-    });
-  };
-
-  const handleDelete = (id) => {
-    setCourses(courses.filter(course => course.id !== id));
-  };
-
-  const handleEdit = (course) => {
-    setFormData(course);
-    setShowModal(true);
+    dispatch({ type: 'SAVE_COURSE' });
   };
 
   return (
@@ -65,7 +90,7 @@ const AdminDashboard = () => {
       <Row className="mb-4">
         <Col>
           <h1>Admin Dashboard</h1>
-          <Button variant="primary" onClick={() => setShowModal(true)}>
+          <Button variant="primary" onClick={() => dispatch({ type: 'SHOW_MODAL' })}>
             Add New Course
           </Button>
         </Col>
@@ -86,7 +111,7 @@ const AdminDashboard = () => {
               </tr>
             </thead>
             <tbody>
-              {courses.map(course => (
+              {state.courses.map(course => (
                 <tr key={course.id}>
                   <td>{course.id}</td>
                   <td>{course.title}</td>
@@ -98,14 +123,14 @@ const AdminDashboard = () => {
                       variant="outline-primary"
                       size="sm"
                       className="me-2"
-                      onClick={() => handleEdit(course)}
+                      onClick={() => dispatch({ type: 'SHOW_MODAL', payload: course })}
                     >
                       Edit
                     </Button>
                     <Button
                       variant="outline-danger"
                       size="sm"
-                      onClick={() => handleDelete(course.id)}
+                      onClick={() => dispatch({ type: 'DELETE_COURSE', payload: course.id })}
                     >
                       Delete
                     </Button>
@@ -118,9 +143,9 @@ const AdminDashboard = () => {
       </Card>
 
       {/* Add/Edit Course Modal */}
-      <Modal show={showModal} onHide={() => setShowModal(false)}>
+      <Modal show={state.showModal} onHide={() => dispatch({ type: 'HIDE_MODAL' })}>
         <Modal.Header closeButton>
-          <Modal.Title>Add New Course</Modal.Title>
+          <Modal.Title>{state.formData.id ? 'Edit Course' : 'Add New Course'}</Modal.Title>
         </Modal.Header>
         <Modal.Body>
           <Form onSubmit={handleSubmit}>
@@ -129,7 +154,7 @@ const AdminDashboard = () => {
               <Form.Control
                 type="text"
                 name="title"
-                value={formData.title}
+                value={state.formData.title}
                 onChange={handleInputChange}
                 required
               />
@@ -139,7 +164,7 @@ const AdminDashboard = () => {
               <Form.Control
                 as="textarea"
                 name="description"
-                value={formData.description}
+                value={state.formData.description}
                 onChange={handleInputChange}
                 required
               />
@@ -148,7 +173,7 @@ const AdminDashboard = () => {
               <Form.Label>Category</Form.Label>
               <Form.Select
                 name="category"
-                value={formData.category}
+                value={state.formData.category}
                 onChange={handleInputChange}
                 required
               >
@@ -163,7 +188,7 @@ const AdminDashboard = () => {
               <Form.Control
                 type="text"
                 name="instructor"
-                value={formData.instructor}
+                value={state.formData.instructor}
                 onChange={handleInputChange}
                 required
               />
@@ -178,4 +203,4 @@ const AdminDashboard = () => {
   );
 };
 
-export default AdminDashboard; 
+export default AdminDashboard;
